@@ -15,10 +15,24 @@ struct SimpleExample: View {
     
     var body: some View {
         LazyPager(data: data) { element in
-            Image(element)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
+            VStack {
+                Image(element)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+
+                Spacer()
+                
+                Capsule()
+                    .frame(height: 20)
+                    .highPriorityGesture(DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            print(value)
+                        }
+                        .onEnded { _ in
+                        })
+            }
         }
+        
     }
 }
 

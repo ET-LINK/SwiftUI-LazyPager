@@ -9,7 +9,7 @@ import Foundation
 import UIKit
 import SwiftUI
 
-class ZoomableView<Element, Content: View>: UIScrollView, UIScrollViewDelegate {
+class ZoomableView<Element, Content: View>: UIScrollView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
     
     var trailingConstraint: NSLayoutConstraint?
     var leadingConstraint: NSLayoutConstraint?
@@ -211,6 +211,23 @@ class ZoomableView<Element, Content: View>: UIScrollView, UIScrollViewDelegate {
         return view
     }
     
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if let panGesture = gestureRecognizer as? UIPanGestureRecognizer {
+            let velocity = panGesture.velocity(in: self)
+            
+            // 如果水平速度大于垂直速度，优先处理左右滑动
+            if abs(velocity.x) > abs(velocity.y) {
+                return true
+            }
+            
+            // 如果垂直速度很小，也优先处理左右滑动
+            if abs(velocity.y) < 10 {
+                return true
+            }
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
+    }
+    
     func scrollViewDidZoom(_ scrollView: UIScrollView) {
         
         let w: CGFloat = view.intrinsicContentSize.width * UIScreen.main.scale
@@ -241,10 +258,10 @@ class ZoomableView<Element, Content: View>: UIScrollView, UIScrollViewDelegate {
         let percentage = contentOffset.y / (contentSize.height - bounds.size.height)
         
         if wasTracking,
-           percentage < -config.dismissTriggerOffset,
            !isZoomHappening,
-           velocity.y < -config.dismissVelocity,
-           config.dismissCallback != nil {
+           config.dismissCallback != nil,
+           (percentage < -config.dismissTriggerOffset && velocity.y < -config.dismissVelocity) ||
+            ((config.backgroundOpacity?.wrappedValue ?? 1) < 0.8) {
             
             isAnimating = true
             let ogFram = frame.origin

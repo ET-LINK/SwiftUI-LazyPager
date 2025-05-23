@@ -73,14 +73,22 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         }
         
         if subviews.isEmpty {
-            for i in currentIndex...(currentIndex + config.preloadAmount) {
-                appendView(at: i)
-            }
-            for i in ((currentIndex - config.preloadAmount)..<currentIndex).reversed() {
+            // 计算预加载范围
+            let startIndex = max(0, currentIndex - config.preloadAmount)
+            let endIndex = min(viewLoader?.dataCount ?? 0, currentIndex + config.preloadAmount)
+            
+            // 向前加载指定数量
+            for i in (startIndex..<currentIndex).reversed() {
                 prependView(at: i)
+            }
+            
+            // 向后加载指定数量
+            for i in currentIndex...endIndex {
+                appendView(at: i)
             }
         }
         
+        // 处理后续加载...剩余代码保持不变
         if let lastView = loadedViews.last {
             let diff = lastView.index - currentIndex
             if diff < (config.preloadAmount) {
@@ -98,10 +106,11 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
                 }
             }
         }
+        
         self.removeOutOfFrameViews()
         
         // Debug
-//         print(self.loadedViews.map { $0.index })
+         print(self.loadedViews.map { $0.index })
     }
     
     
@@ -305,6 +314,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
                 relativeIndex = Int(round(scrollView.contentOffset.y / scrollView.frame.height))
             }
             relativeIndex = relativeIndex < 0 ? 0 : relativeIndex
+            relativeIndex = relativeIndex >= loadedViews.count ? loadedViews.count-1 : relativeIndex
             currentIndex = loadedViews[relativeIndex].index
             page.wrappedValue = currentIndex
         }

@@ -155,17 +155,22 @@ extension LazyPager: UIViewControllerRepresentable {
         
         uiViewController.viewLoader = viewLoader
         uiViewController.data = data
+        
+        // 数据为空时直接重置索引并返回，避免传入 -1
+        guard data.count > 0 else {
+            uiViewController.pagerView.currentIndex = 0
+            uiViewController.reloadViews()
+            return
+        }
+        
+        // 将 page 索引 clamp 到有效范围
+        let clamped = max(0, min(page.wrappedValue, data.count - 1))
+        
         defer { uiViewController.reloadViews() }
-        if page.wrappedValue != uiViewController.pagerView.currentIndex {
-            // Index was explicitly updated
-            uiViewController.goToPage(page.wrappedValue)
-        }
         
-        if page.wrappedValue >= data.count {
-            uiViewController.goToPage(data.count - 1)
-        } else if page.wrappedValue < 0 {
-            uiViewController.goToPage(0)
+        if clamped != uiViewController.pagerView.currentIndex {
+            // 索引已被显式更新或需要修正
+            uiViewController.goToPage(clamped)
         }
-        
     }
 }

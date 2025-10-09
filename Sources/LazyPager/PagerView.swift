@@ -72,19 +72,35 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
             self.delegate = self
         }
         
+        // 获取数据总数并做空集防御
+        let total = viewLoader?.dataCount ?? 0
+        guard total > 0 else {
+            // 数据为空时清空所有视图，避免非法区间与无效子视图
+            loadedViews.forEach { $0.removeFromSuperview() }
+            loadedViews.removeAll()
+            return
+        }
+        
+        // 将 currentIndex clamp 到有效范围，避免区间越界
+        let safeCurrent = max(0, min(currentIndex, total - 1))
+        
         if subviews.isEmpty {
-            // 计算预加载范围
-            let startIndex = max(0, currentIndex - config.preloadAmount)
-            let endIndex = min(viewLoader?.dataCount ?? 0, currentIndex + config.preloadAmount)
+            // 计算预加载范围（修正 endIndex 为 total - 1）
+            let startIndex = max(0, safeCurrent - config.preloadAmount)
+            let endIndex = min(total - 1, safeCurrent + config.preloadAmount)
             
-            // 向前加载指定数量
-            for i in (startIndex..<currentIndex).reversed() {
-                prependView(at: i)
+            // 向前加载指定数量（仅在区间有序时）
+            if startIndex < safeCurrent {
+                for i in (startIndex..<safeCurrent).reversed() {
+                    prependView(at: i)
+                }
             }
             
-            // 向后加载指定数量
-            for i in currentIndex...endIndex {
-                appendView(at: i)
+            // 向后加载指定数量（仅在区间有序时）
+            if safeCurrent <= endIndex {
+                for i in safeCurrent...endIndex {
+                    appendView(at: i)
+                }
             }
         }
         
@@ -260,8 +276,19 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     func removeOutOfFrameViews() {
         guard let viewLoader = viewLoader else { return }
         
+        let total = viewLoader.dataCount
+        // 数据为空时清空所有视图
+        guard total > 0 else {
+            loadedViews.forEach { $0.removeFromSuperview() }
+            loadedViews.removeAll()
+            return
+        }
+        
+        // 使用 clamp 后的索引进行距离判断，避免边界抖动
+        let safeCurrent = max(0, min(currentIndex, total - 1))
+        
         for view in loadedViews {
-            if abs(currentIndex - view.index) > config.preloadAmount || view.index >= viewLoader.dataCount {
+            if abs(safeCurrent - view.index) > config.preloadAmount || view.index >= total {
                 remove(view: view)
             }
         }
@@ -307,6 +334,9 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
         if !scrollView.isTracking, !isRotating  {
+            // 防御空数组访问
+            guard !loadedViews.isEmpty else { return }
+            
             var relativeIndex: Int
             if config.direction == .horizontal {
                 relativeIndex = Int(round(scrollView.contentOffset.x / scrollView.frame.width))

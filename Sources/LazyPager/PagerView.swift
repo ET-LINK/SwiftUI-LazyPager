@@ -320,23 +320,29 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     }
 
     func ensureCurrentPage() {
-        print("[PhotoTransition] PagerView.ensureCurrentPage - currentIndex: \(currentIndex), loadedViews.count: \(loadedViews.count)")
+        print("[PhotoTransition] PagerView.ensureCurrentPage - currentIndex: \(currentIndex), loadedViews.count: \(loadedViews.count), frame.size: \(frame.size)")
         print("[PhotoTransition] PagerView.ensureCurrentPage - loadedViews.indices: \(loadedViews.map { $0.index })")
+
+        // 防止在 frame 为 0 时执行
+        guard frame.size.width > 0, frame.size.height > 0 else {
+            print("[PhotoTransition] PagerView.ensureCurrentPage - frame 为 0，跳过")
+            return
+        }
 
         guard let index = loadedViews.firstIndex(where: { $0.index == currentIndex }) else {
             print("[PhotoTransition] PagerView.ensureCurrentPage - 未找到 currentIndex: \(currentIndex) 对应的 view")
             return
         }
 
-        print("[PhotoTransition] PagerView.ensureCurrentPage - 找到 view at index: \(index), 设置 contentOffset")
+        print("[PhotoTransition] PagerView.ensureCurrentPage - 找到 view at loadedViews[\(index)], session.index=\(loadedViews[index].index)")
 
         if config.direction == .horizontal {
             let newOffset = CGFloat(index) * frame.size.width
-            print("[PhotoTransition] PagerView.ensureCurrentPage - 设置 contentOffset.x: \(contentOffset.x) -> \(newOffset)")
+            print("[PhotoTransition] PagerView.ensureCurrentPage - 设置 contentOffset.x: \(contentOffset.x) -> \(newOffset) (index: \(index), width: \(frame.size.width))")
             contentOffset.x = newOffset
         } else {
             let newOffset = CGFloat(index) * frame.size.height
-            print("[PhotoTransition] PagerView.ensureCurrentPage - 设置 contentOffset.y: \(contentOffset.y) -> \(newOffset)")
+            print("[PhotoTransition] PagerView.ensureCurrentPage - 设置 contentOffset.y: \(contentOffset.y) -> \(newOffset) (index: \(index), height: \(frame.size.height))")
             contentOffset.y = newOffset
         }
     }

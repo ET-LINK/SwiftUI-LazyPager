@@ -32,7 +32,6 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     
     var currentIndex: Int = 0 {
         didSet {
-            print("[PhotoTransition] PagerView.currentIndex didSet - oldValue: \(oldValue), newValue: \(currentIndex)")
             computeViewState()
             loadMoreIfNeeded()
         }
@@ -68,47 +67,37 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     }
     
     func computeViewState() {
-        print("[PhotoTransition] PagerView.computeViewState - 开始, currentIndex: \(currentIndex)")
-
         delegate = nil
         DispatchQueue.main.async {
             self.delegate = self
         }
-
+        
         // 获取数据总数并做空集防御
         let total = viewLoader?.dataCount ?? 0
-        print("[PhotoTransition] PagerView.computeViewState - total: \(total)")
-
         guard total > 0 else {
-            print("[PhotoTransition] PagerView.computeViewState - 数据为空，清空视图")
             // 数据为空时清空所有视图，避免非法区间与无效子视图
             loadedViews.forEach { $0.removeFromSuperview() }
             loadedViews.removeAll()
             return
         }
-
+        
         // 将 currentIndex clamp 到有效范围，避免区间越界
         let safeCurrent = max(0, min(currentIndex, total - 1))
-        print("[PhotoTransition] PagerView.computeViewState - safeCurrent: \(safeCurrent), preloadAmount: \(config.preloadAmount)")
         
         if subviews.isEmpty {
-            print("[PhotoTransition] PagerView.computeViewState - subviews 为空，首次加载")
             // 计算预加载范围（修正 endIndex 为 total - 1）
             let startIndex = max(0, safeCurrent - config.preloadAmount)
             let endIndex = min(total - 1, safeCurrent + config.preloadAmount)
-            print("[PhotoTransition] PagerView.computeViewState - 预加载范围: \(startIndex)...\(endIndex)")
-
+            
             // 向前加载指定数量（仅在区间有序时）
             if startIndex < safeCurrent {
-                print("[PhotoTransition] PagerView.computeViewState - 向前加载: \(startIndex)..<\(safeCurrent)")
                 for i in (startIndex..<safeCurrent).reversed() {
                     prependView(at: i)
                 }
             }
-
+            
             // 向后加载指定数量（仅在区间有序时）
             if safeCurrent <= endIndex {
-                print("[PhotoTransition] PagerView.computeViewState - 向后加载: \(safeCurrent)...\(endIndex)")
                 for i in safeCurrent...endIndex {
                     appendView(at: i)
                 }
@@ -135,9 +124,9 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         }
         
         self.removeOutOfFrameViews()
-
+        
         // Debug
-        print("[PhotoTransition] PagerView.computeViewState - 完成，当前 loadedViews: \(self.loadedViews.map { $0.index })")
+         print(self.loadedViews.map { $0.index })
     }
     
     
@@ -314,36 +303,16 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     }
     
     func goToPage(_ page: Int) {
-        print("[PhotoTransition] PagerView.goToPage - page: \(page), 当前 currentIndex: \(currentIndex)")
         currentIndex = page
         ensureCurrentPage()
     }
-
+    
     func ensureCurrentPage() {
-        print("[PhotoTransition] PagerView.ensureCurrentPage - currentIndex: \(currentIndex), loadedViews.count: \(loadedViews.count), frame.size: \(frame.size)")
-        print("[PhotoTransition] PagerView.ensureCurrentPage - loadedViews.indices: \(loadedViews.map { $0.index })")
-
-        // 防止在 frame 为 0 时执行
-        guard frame.size.width > 0, frame.size.height > 0 else {
-            print("[PhotoTransition] PagerView.ensureCurrentPage - frame 为 0，跳过")
-            return
-        }
-
-        guard let index = loadedViews.firstIndex(where: { $0.index == currentIndex }) else {
-            print("[PhotoTransition] PagerView.ensureCurrentPage - 未找到 currentIndex: \(currentIndex) 对应的 view")
-            return
-        }
-
-        print("[PhotoTransition] PagerView.ensureCurrentPage - 找到 view at loadedViews[\(index)], session.index=\(loadedViews[index].index)")
-
+        guard let index = loadedViews.firstIndex(where: { $0.index == currentIndex }) else { return }
         if config.direction == .horizontal {
-            let newOffset = CGFloat(index) * frame.size.width
-            print("[PhotoTransition] PagerView.ensureCurrentPage - 设置 contentOffset.x: \(contentOffset.x) -> \(newOffset) (index: \(index), width: \(frame.size.width))")
-            contentOffset.x = newOffset
+            contentOffset.x = CGFloat(index) * frame.size.width
         } else {
-            let newOffset = CGFloat(index) * frame.size.height
-            print("[PhotoTransition] PagerView.ensureCurrentPage - 设置 contentOffset.y: \(contentOffset.y) -> \(newOffset) (index: \(index), height: \(frame.size.height))")
-            contentOffset.y = newOffset
+            contentOffset.y = CGFloat(index) * frame.size.height
         }
     }
     
@@ -367,7 +336,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         if !scrollView.isTracking, !isRotating  {
             // 防御空数组访问
             guard !loadedViews.isEmpty else { return }
-
+            
             var relativeIndex: Int
             if config.direction == .horizontal {
                 relativeIndex = Int(round(scrollView.contentOffset.x / scrollView.frame.width))
@@ -376,13 +345,8 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
             }
             relativeIndex = relativeIndex < 0 ? 0 : relativeIndex
             relativeIndex = relativeIndex >= loadedViews.count ? loadedViews.count-1 : relativeIndex
-
-            let newIndex = loadedViews[relativeIndex].index
-            if newIndex != currentIndex {
-                print("[PhotoTransition] PagerView.scrollViewDidScroll - 索引变化: \(currentIndex) -> \(newIndex), relativeIndex: \(relativeIndex)")
-                currentIndex = newIndex
-                page.wrappedValue = currentIndex
-            }
+            currentIndex = loadedViews[relativeIndex].index
+            page.wrappedValue = currentIndex
         }
         
         

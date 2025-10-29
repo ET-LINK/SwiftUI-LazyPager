@@ -138,10 +138,8 @@ public extension LazyPager {
 extension LazyPager: UIViewControllerRepresentable {
     
     public func makeUIViewController(context: Context) -> Coordinator {
-        print("[PhotoTransition] LazyPager.makeUIViewController - 初始 page: \(page.wrappedValue), data.count: \(data.count)")
         DispatchQueue.main.async {
-            print("[PhotoTransition] LazyPager.makeUIViewController - 异步调用 goToPage(\(self.page.wrappedValue))")
-            context.coordinator.goToPage(self.page.wrappedValue)
+            context.coordinator.goToPage(page.wrappedValue)
         }
         return context.coordinator
     }
@@ -154,43 +152,25 @@ extension LazyPager: UIViewControllerRepresentable {
     }
 
     public func updateUIViewController(_ uiViewController: Coordinator, context: Context) {
-        print("[PhotoTransition] LazyPager.updateUIViewController - page: \(page.wrappedValue), data.count: \(data.count), currentIndex: \(uiViewController.pagerView.currentIndex)")
-
-        // 只在初次创建时才需要 reloadViews
-        let isFirstUpdate = uiViewController.pagerView.loadedViews.isEmpty
-        print("[PhotoTransition] LazyPager.updateUIViewController - isFirstUpdate: \(isFirstUpdate)")
-
+        
         uiViewController.viewLoader = viewLoader
         uiViewController.data = data
-
+        
         // 数据为空时直接重置索引并返回，避免传入 -1
         guard data.count > 0 else {
-            print("[PhotoTransition] LazyPager.updateUIViewController - 数据为空，重置索引")
             uiViewController.pagerView.currentIndex = 0
-            if isFirstUpdate {
-                uiViewController.reloadViews()
-            }
+            uiViewController.reloadViews()
             return
         }
-
+        
         // 将 page 索引 clamp 到有效范围
         let clamped = max(0, min(page.wrappedValue, data.count - 1))
-        print("[PhotoTransition] LazyPager.updateUIViewController - clamped: \(clamped)")
-
+        
+        defer { uiViewController.reloadViews() }
+        
         if clamped != uiViewController.pagerView.currentIndex {
-            print("[PhotoTransition] LazyPager.updateUIViewController - 索引不同，调用 goToPage(\(clamped))")
             // 索引已被显式更新或需要修正
             uiViewController.goToPage(clamped)
-        } else {
-            print("[PhotoTransition] LazyPager.updateUIViewController - 索引相同，无需 goToPage")
-        }
-
-        // 只在首次更新或数据变化时调用 reloadViews
-        if isFirstUpdate {
-            print("[PhotoTransition] LazyPager.updateUIViewController - 首次更新，调用 reloadViews()")
-            uiViewController.reloadViews()
-        } else {
-            print("[PhotoTransition] LazyPager.updateUIViewController - 跳过 reloadViews()")
         }
     }
 }

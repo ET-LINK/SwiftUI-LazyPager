@@ -32,6 +32,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     
     var currentIndex: Int = 0 {
         didSet {
+            LazyPagerLogger.log("PagerView.currentIndex didSet - oldValue=\(oldValue) newValue=\(currentIndex)")
             computeViewState()
             loadMoreIfNeeded()
         }
@@ -42,6 +43,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         self.page = page
         self.config = config
         super.init(frame: .zero)
+        LazyPagerLogger.log("PagerView.init - initialIndex=\(currentIndex) direction=\(config.direction) preloadAmount=\(config.preloadAmount)")
         
         showsVerticalScrollIndicator = false
         showsHorizontalScrollIndicator = false
@@ -59,14 +61,17 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     public override func layoutSubviews() {
         super.layoutSubviews()
         if !isFirstLoad {
+            LazyPagerLogger.log("PagerView.layoutSubviews firstLoad - frame=\(frame.size)")
             ensureCurrentPage()
             isFirstLoad = true
         } else if isRotating {
+            LazyPagerLogger.log("PagerView.layoutSubviews rotating - frame=\(frame.size)")
             ensureCurrentPage()
         }
     }
     
     func computeViewState() {
+        LazyPagerLogger.log("PagerView.computeViewState start - currentIndex=\(currentIndex) loadedCount=\(loadedViews.count)")
         delegate = nil
         DispatchQueue.main.async {
             self.delegate = self
@@ -78,6 +83,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
             // 数据为空时清空所有视图，避免非法区间与无效子视图
             loadedViews.forEach { $0.removeFromSuperview() }
             loadedViews.removeAll()
+            LazyPagerLogger.log("PagerView.computeViewState cleared - dataEmpty")
             return
         }
         
@@ -85,6 +91,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         let safeCurrent = max(0, min(currentIndex, total - 1))
         
         if subviews.isEmpty {
+            LazyPagerLogger.log("PagerView.computeViewState preparingInitialLoad - safeCurrent=\(safeCurrent) total=\(total)")
             // 计算预加载范围（修正 endIndex 为 total - 1）
             let startIndex = max(0, safeCurrent - config.preloadAmount)
             let endIndex = min(total - 1, safeCurrent + config.preloadAmount)
@@ -126,7 +133,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         self.removeOutOfFrameViews()
         
         // Debug
-         print(self.loadedViews.map { $0.index })
+        LazyPagerLogger.log("PagerView.computeViewState end - loadedIndexes=\(self.loadedViews.map { $0.index })")
     }
     
     
@@ -156,6 +163,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     
     func appendView(at index: Int) {
         guard let zoomView = viewLoader?.loadView(at: index) else { return }
+        LazyPagerLogger.log("PagerView.appendView - index=\(index)")
         
         addSubview(zoomView)
         
@@ -187,6 +195,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     
     func prependView(at index: Int) {
         guard let zoomView = viewLoader?.loadView(at: index) else { return }
+        LazyPagerLogger.log("PagerView.prependView - index=\(index)")
         
         addSubview(zoomView)
         
@@ -224,12 +233,14 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     }
     
     func reloadViews() {
+        LazyPagerLogger.log("PagerView.reloadViews - loadedViewCount=\(loadedViews.count)")
         for view in loadedViews {
             viewLoader?.updateHostedView(for: view)
         }
     }
     
     func remove(view: ZoomableView<Element, Content>) {
+        LazyPagerLogger.log("PagerView.removeView - index=\(view.index)")
         let index = view.index
         loadedViews.removeAll { $0.index == view.index }
         view.removeFromSuperview()
@@ -281,6 +292,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         guard total > 0 else {
             loadedViews.forEach { $0.removeFromSuperview() }
             loadedViews.removeAll()
+            LazyPagerLogger.log("PagerView.removeOutOfFrameViews cleared - dataEmpty")
             return
         }
         
@@ -289,6 +301,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         
         for view in loadedViews {
             if abs(safeCurrent - view.index) > config.preloadAmount || view.index >= total {
+                LazyPagerLogger.log("PagerView.removeOutOfFrameViews - removingIndex=\(view.index) safeCurrent=\(safeCurrent)")
                 remove(view: view)
             }
         }
@@ -303,6 +316,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     }
     
     func goToPage(_ page: Int) {
+        LazyPagerLogger.log("PagerView.goToPage - targetPage=\(page)")
         currentIndex = page
         ensureCurrentPage()
     }
@@ -314,6 +328,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         } else {
             contentOffset.y = CGFloat(index) * frame.size.height
         }
+        LazyPagerLogger.log("PagerView.ensureCurrentPage - resolvedIndex=\(index) contentOffset=\(config.direction == .horizontal ? contentOffset.x : contentOffset.y)")
     }
     
     func loadMoreIfNeeded() {
@@ -325,6 +340,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
             DispatchQueue.main.async {
                 loadMoreCallback()
             }
+            LazyPagerLogger.log("PagerView.loadMoreIfNeeded triggered - currentIndex=\(currentIndex) dataCount=\(viewLoader.dataCount) offset=\(offset)")
         }
     }
     
@@ -347,6 +363,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
             relativeIndex = relativeIndex >= loadedViews.count ? loadedViews.count-1 : relativeIndex
             currentIndex = loadedViews[relativeIndex].index
             page.wrappedValue = currentIndex
+            LazyPagerLogger.log("PagerView.scrollViewDidScroll - relativeIndex=\(relativeIndex) mappedIndex=\(currentIndex)")
         }
         
         
@@ -363,6 +380,7 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
             if self.lastPos == caputred, !scrollView.isTracking {
                 self.resizeOutOfBoundsViews()
+                LazyPagerLogger.log("PagerView.scrollViewDidScroll settled - currentIndex=\(self.currentIndex)")
             }
         }
     }

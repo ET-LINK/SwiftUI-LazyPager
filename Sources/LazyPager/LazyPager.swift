@@ -9,6 +9,12 @@ import Foundation
 import UIKit
 import SwiftUI
 
+enum LazyPagerLogger {
+    static func log(_ message: String) {
+        print("[LazyPagerLog] \(message)")
+    }
+}
+
 public enum LoadMore {
     case lastElement(minus: Int = 0)
 }
@@ -138,13 +144,16 @@ public extension LazyPager {
 extension LazyPager: UIViewControllerRepresentable {
     
     public func makeUIViewController(context: Context) -> Coordinator {
+        LazyPagerLogger.log("makeUIViewController start - requestedPage=\(page.wrappedValue)")
         DispatchQueue.main.async {
+            LazyPagerLogger.log("makeUIViewController dispatch goToPage - targetPage=\(page.wrappedValue)")
             context.coordinator.goToPage(page.wrappedValue)
         }
         return context.coordinator
     }
     
     public func makeCoordinator() -> Coordinator {
+        LazyPagerLogger.log("makeCoordinator - initialDataCount=\(data.count) initialPage=\(page.wrappedValue)")
         return Coordinator(data: data,
                            page: page,
                            config: config,
@@ -152,12 +161,14 @@ extension LazyPager: UIViewControllerRepresentable {
     }
 
     public func updateUIViewController(_ uiViewController: Coordinator, context: Context) {
+        LazyPagerLogger.log("updateUIViewController start - incomingPage=\(page.wrappedValue) currentIndex=\(uiViewController.pagerView.currentIndex) dataCount=\(data.count)")
         
         uiViewController.viewLoader = viewLoader
         uiViewController.data = data
         
         // 数据为空时直接重置索引并返回，避免传入 -1
         guard data.count > 0 else {
+            LazyPagerLogger.log("updateUIViewController dataEmpty - resettingIndexToZero")
             uiViewController.pagerView.currentIndex = 0
             uiViewController.reloadViews()
             return
@@ -169,8 +180,11 @@ extension LazyPager: UIViewControllerRepresentable {
         defer { uiViewController.reloadViews() }
         
         if clamped != uiViewController.pagerView.currentIndex {
+            LazyPagerLogger.log("updateUIViewController goToPage - clampedTarget=\(clamped) previousIndex=\(uiViewController.pagerView.currentIndex)")
             // 索引已被显式更新或需要修正
             uiViewController.goToPage(clamped)
+        } else {
+            LazyPagerLogger.log("updateUIViewController skipGoToPage - indexUnchanged=\(clamped)")
         }
     }
 }

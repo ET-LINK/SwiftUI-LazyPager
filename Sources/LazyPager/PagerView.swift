@@ -60,10 +60,18 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     
     public override func layoutSubviews() {
         super.layoutSubviews()
+
+        let frameSize = config.direction == .horizontal ? frame.size.width : frame.size.height
+
         if !isFirstLoad {
             LazyPagerLogger.log("PagerView.layoutSubviews firstLoad - frame=\(frame.size)")
-            ensureCurrentPage()
-            isFirstLoad = true
+            // 只有在frame有效时才标记为已加载，否则需要等待下一次layoutSubviews
+            if frameSize > 0 {
+                ensureCurrentPage()
+                isFirstLoad = true
+            } else {
+                LazyPagerLogger.log("PagerView.layoutSubviews firstLoad skipped - frameNotReady")
+            }
         } else if isRotating {
             LazyPagerLogger.log("PagerView.layoutSubviews rotating - frame=\(frame.size)")
             ensureCurrentPage()
@@ -322,7 +330,18 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
     }
     
     func ensureCurrentPage() {
-        guard let index = loadedViews.firstIndex(where: { $0.index == currentIndex }) else { return }
+        guard let index = loadedViews.firstIndex(where: { $0.index == currentIndex }) else {
+            LazyPagerLogger.log("PagerView.ensureCurrentPage skip - viewNotLoaded currentIndex=\(currentIndex)")
+            return
+        }
+
+        // 检查frame是否已完成布局，避免在frame为零时设置无效的contentOffset
+        let frameSize = config.direction == .horizontal ? frame.size.width : frame.size.height
+        guard frameSize > 0 else {
+            LazyPagerLogger.log("PagerView.ensureCurrentPage skip - frameNotReady frameSize=\(frameSize)")
+            return
+        }
+
         if config.direction == .horizontal {
             contentOffset.x = CGFloat(index) * frame.size.width
         } else {

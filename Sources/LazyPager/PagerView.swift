@@ -343,9 +343,15 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
         }
 
         if config.direction == .horizontal {
-            contentOffset.x = CGFloat(index) * frame.size.width
+            let targetX = CGFloat(index) * frame.size.width
+            if abs(contentOffset.x - targetX) > 0.5 {
+                contentOffset.x = targetX
+            }
         } else {
-            contentOffset.y = CGFloat(index) * frame.size.height
+            let targetY = CGFloat(index) * frame.size.height
+            if abs(contentOffset.y - targetY) > 0.5 {
+                contentOffset.y = targetY
+            }
         }
         LazyPagerLogger.log("PagerView.ensureCurrentPage - resolvedIndex=\(index) contentOffset=\(config.direction == .horizontal ? contentOffset.x : contentOffset.y)")
     }
@@ -381,7 +387,10 @@ class PagerView<Element, Loader: ViewLoader, Content: View>: UIScrollView, UIScr
             relativeIndex = relativeIndex < 0 ? 0 : relativeIndex
             relativeIndex = relativeIndex >= loadedViews.count ? loadedViews.count-1 : relativeIndex
             currentIndex = loadedViews[relativeIndex].index
-            page.wrappedValue = currentIndex
+            
+            if page.wrappedValue != currentIndex {
+                page.wrappedValue = currentIndex
+            }
             LazyPagerLogger.log("PagerView.scrollViewDidScroll - relativeIndex=\(relativeIndex) mappedIndex=\(currentIndex)")
         }
         

@@ -163,6 +163,8 @@ extension LazyPager: UIViewControllerRepresentable {
     public func updateUIViewController(_ uiViewController: Coordinator, context: Context) {
         LazyPagerLogger.log("updateUIViewController start - incomingPage=\(page.wrappedValue) currentIndex=\(uiViewController.pagerView.currentIndex) dataCount=\(data.count)")
         
+        let needReload = uiViewController.data.count != data.count
+        
         uiViewController.viewLoader = viewLoader
         uiViewController.data = data
         
@@ -177,12 +179,14 @@ extension LazyPager: UIViewControllerRepresentable {
         // 将 page 索引 clamp 到有效范围
         let clamped = max(0, min(page.wrappedValue, data.count - 1))
         
-        defer { uiViewController.reloadViews() }
-        
         if clamped != uiViewController.pagerView.currentIndex {
             LazyPagerLogger.log("updateUIViewController goToPage - clampedTarget=\(clamped) previousIndex=\(uiViewController.pagerView.currentIndex)")
             // 索引已被显式更新或需要修正
             uiViewController.goToPage(clamped)
+            uiViewController.reloadViews()
+        } else if needReload {
+            LazyPagerLogger.log("updateUIViewController reloadViews - reason=dataCountChanged")
+            uiViewController.reloadViews()
         } else {
             LazyPagerLogger.log("updateUIViewController skipGoToPage - indexUnchanged=\(clamped)")
         }

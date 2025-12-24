@@ -163,6 +163,9 @@ extension LazyPager: UIViewControllerRepresentable {
     public func updateUIViewController(_ uiViewController: Coordinator, context: Context) {
         LazyPagerLogger.log("updateUIViewController start - incomingPage=\(page.wrappedValue) currentIndex=\(uiViewController.pagerView.currentIndex) dataCount=\(data.count)")
         
+        let previousDataCount = uiViewController.dataCount
+        let previousIndex = uiViewController.pagerView.currentIndex
+        
         uiViewController.viewLoader = viewLoader
         uiViewController.data = data
         
@@ -170,21 +173,36 @@ extension LazyPager: UIViewControllerRepresentable {
         guard data.count > 0 else {
             LazyPagerLogger.log("updateUIViewController dataEmpty - resettingIndexToZero")
             uiViewController.pagerView.currentIndex = 0
-            uiViewController.reloadViews()
+            
+            // 仅同步 pager 的内部视图状态（清空已加载页面），避免无意义的 rootView 重新赋值
+            uiViewController.pagerView.computeViewState()
             return
         }
         
         // 将 page 索引 clamp 到有效范围
         let clamped = max(0, min(page.wrappedValue, data.count - 1))
         
-        defer { uiViewController.reloadViews() }
+        // 主动回写 binding，避免下一次 update 继续传入越界索引导致反复修正
+        if clamped != page.wrappedValue {
+            page.wrappedValue = clamped
+        }
         
-        if clamped != uiViewController.pagerView.currentIndex {
-            LazyPagerLogger.log("updateUIViewController goToPage - clampedTarget=\(clamped) previousIndex=\(uiViewController.pagerView.currentIndex)")
+        let indexChanged = clamped != previousIndex
+        let dataCountChanged = data.count != previousDataCount
+        
+        if indexChanged {
+            LazyPagerLogger.log("updateUIViewController goToPage - clampedTarget=\(clamped) previousIndex=\(previousIndex)")
             // 索引已被显式更新或需要修正
             uiViewController.goToPage(clamped)
         } else {
             LazyPagerLogger.log("updateUIViewController skipGoToPage - indexUnchanged=\(clamped)")
+        }
+        
+        // 只有在数据量变化时才刷新已加载页面的 rootView。
+        // 避免在静止状态下（例如视频 time 更新）反复重建页面导致 @State 重置/视频重播。
+        if dataCountChanged {
+            LazyPagerLogger.log("updateUIViewController reloadViews - dataCountChanged previous=\(previousDataCount) new=\(data.count)")
+            uiViewController.reloadViews()
         }
     }
 }

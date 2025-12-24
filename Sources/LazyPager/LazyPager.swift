@@ -161,7 +161,7 @@ extension LazyPager: UIViewControllerRepresentable {
     }
 
     public func updateUIViewController(_ uiViewController: Coordinator, context: Context) {
-        LazyPagerLogger.log("updateUIViewController start - incomingPage=\(page.wrappedValue) currentIndex=\(uiViewController.pagerView.currentIndex) dataCount=\(data.count)")
+        LazyPagerLogger.log("updateUIViewController start [v2] - incomingPage=\(page.wrappedValue) currentIndex=\(uiViewController.pagerView.currentIndex) dataCount=\(data.count)")
         
         let needReload = uiViewController.data.count != data.count
         
@@ -188,7 +188,7 @@ extension LazyPager: UIViewControllerRepresentable {
             LazyPagerLogger.log("updateUIViewController reloadViews - reason=dataCountChanged")
             uiViewController.reloadViews()
         } else {
-            LazyPagerLogger.log("updateUIViewController skipGoToPage - indexUnchanged=\(clamped)")
+            LazyPagerLogger.log("updateUIViewController skipGoToPage - indexUnchanged=\(clamped) - NO RELOAD")
         }
     }
 }
